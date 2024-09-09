@@ -1,9 +1,10 @@
 import random
 import os
+import uuid
 from cards import Card, create_deck
 
 class Player:
-    def __init__(self, name):
+    def __init__(self, name, is_human=True):
         self.name = name
         self.life = 20
         self.energy = 2
@@ -12,6 +13,7 @@ class Player:
         self.board = []
         self.draw_initial_hand()
         self.attacked_this_turn = []
+        self.is_human = is_human
 
     def draw_initial_hand(self):
         for _ in range(5):
@@ -31,8 +33,14 @@ class Player:
                 self.cast_spell(card, opponent)
                 self.hand.pop(card_index)
             elif card.card_type == 'equipment':
-                self.equip_card(card)
-                self.hand.pop(card_index)
+                if self.board:
+                    if self.is_human:
+                        self.equip_card(card, card_index)
+                    else:
+                        self.ai_equip_card(card, card_index)
+                else:
+                    print("No creatures to equip the card to.")
+                    self.energy += card.cost  # Refund energy if no valid target
             return card
         return None
 
@@ -42,19 +50,107 @@ class Player:
         elif card.name == "Spore Burst":
             opponent.life -= 3
 
-    def equip_card(self, card):
+    def equip_card(self, card, card_index):
+        while True:
+            try:
+                target_index = int(input(f"Choose a creature to equip {card.name} to (index): ")) - 1
+                if 0 <= target_index < len(self.board):
+                    target = self.board[target_index]
+                    if card.name == "Fungal Shield":
+                        target.defense += 1
+                    elif card.name == "Cyber Blade":
+                        target.attack += 2
+                    self.hand.pop(card_index)
+                    break
+                else:
+                    print("Invalid index. Try again.")
+            except ValueError:
+                print("Invalid input. Please enter a valid index.")
+
+    def ai_equip_card(self, card, card_index):
         if self.board:
-            target = self.board[0]  # Equip the first creature on the board
+            target = random.choice(self.board)
             if card.name == "Fungal Shield":
                 target.defense += 1
             elif card.name == "Cyber Blade":
                 target.attack += 2
+            self.hand.pop(card_index)
 
-    def attack(self, opponent):
-        for card in self.board:
-            if card.card_type == 'creature' and card not in self.attacked_this_turn:
-                opponent.life -= card.attack
-                self.attacked_this_turn.append(card)
+    def attack(self, opponent, game):
+        if self.is_human:
+            attackers = self.choose_attackers(game)
+        else:
+            attackers = self.ai_choose_attackers()
+
+        if not attackers:
+            print("No creatures to attack with.")
+            return
+
+        if not opponent.board:
+            for attacker in attackers:
+                opponent.life -= attacker.attack
+                self.attacked_this_turn.append(attacker)
+            game.game_log.append(f"\033[1;31m{self.name} attacked {opponent.name} directly with {len(attackers)} creatures.\033[0m")
+        else:
+            if opponent.is_human:
+                blockers = opponent.choose_blockers(game)
+            else:
+                blockers = opponent.ai_choose_blockers()
+
+            for attacker, blocker in zip(attackers, blockers):
+                attacker.defense -= blocker.attack
+                blocker.defense -= attacker.attack
+                if attacker.defense <= 0:
+                    self.board.remove(attacker)
+                if blocker.defense <= 0:
+                    opponent.board.remove(blocker)
+                self.attacked_this_turn.append(attacker)
+
+            remaining_attackers = attackers[len(blockers):]
+            for attacker in remaining_attackers:
+                opponent.life -= attacker.attack
+                self.attacked_this_turn.append(attacker)
+            game.game_log.append(f"\033[1;31m{self.name} attacked {opponent.name} with {len(attackers)} creatures, {len(blockers)} were blocked.\033[0m")
+
+    def choose_attackers(self, game):
+        attackers = []
+        while True:
+            game.display_game_state()
+            action = input(f"{self.name}, choose attackers (comma separated indices) or 'done': ").strip().lower()
+            if action == 'done':
+                break
+            try:
+                indices = list(map(lambda x: int(x) - 1, action.split(',')))
+                for index in indices:
+                    if 0 <= index < len(self.board) and self.board[index] not in self.attacked_this_turn:
+                        attackers.append(self.board[index])
+                break
+            except ValueError:
+                print("Invalid input. Please enter comma separated indices.")
+        return attackers
+
+    def choose_blockers(self, game):
+        blockers = []
+        while True:
+            game.display_game_state()
+            action = input(f"{self.name}, choose blockers (comma separated indices) or 'done': ").strip().lower()
+            if action == 'done':
+                break
+            try:
+                indices = list(map(lambda x: int(x) - 1, action.split(',')))
+                for index in indices:
+                    if 0 <= index < len(self.board):
+                        blockers.append(self.board[index])
+                break
+            except ValueError:
+                print("Invalid input. Please enter comma separated indices.")
+        return blockers
+
+    def ai_choose_attackers(self):
+        return random.sample(self.board, min(len(self.board), random.randint(1, 3)))
+
+    def ai_choose_blockers(self):
+        return random.sample(self.board, min(len(self.board), random.randint(1, 3)))
 
     def reset_attacks(self):
         self.attacked_this_turn = []
@@ -65,7 +161,7 @@ class Player:
 class Game:
     def __init__(self):
         self.player1 = Player("Human")
-        self.player2 = Player("AI")
+        self.player2 = Player("AI", is_human=False)
         self.current_player = self.player1
         self.opponent = self.player2
         self.turn = 1
@@ -90,14 +186,14 @@ class Game:
         print(f"\033[1;31mAI - Life: {self.player2.life}, Energy: {self.player2.energy}, Deck: {len(self.player2.deck)} cards\033[0m")
         print("__________________________")
         print("GAMEBOARD HALF A")
-        print("Opponent's board:", [f"{card.name} ({card.attack}/{card.defense})" for card in self.player2.board])
+        print("Opponent's board:", [f"{i+1}: {card.name} ({card.attack}/{card.defense})" for i, card in enumerate(self.player2.board)])
         print("GAMEBOARD HALF B")
-        print("Your board:", [f"{card.name} ({card.attack}/{card.defense})" for card in self.player1.board])
+        print("Your board:", [f"{i+1}: {card.name} ({card.attack}/{card.defense})" for i, card in enumerate(self.player1.board)])
         print("__________________________")
         print(f"\033[1;32mHuman - Life: {self.player1.life}, Energy: {self.player1.energy}, Deck: {len(self.player1.deck)} cards\033[0m")
         print("CARDS IN HAND:")
         for i, card in enumerate(self.player1.hand):
-            print(f"{i}: {card}")
+            print(f"{i+1}: {card}")
         print("__________________________")
         print("Game Log:")
         if full_log:
@@ -110,7 +206,7 @@ class Game:
 
     def draw_phase(self):
         self.current_player.draw_card()
-        self.game_log.append(f"{self.current_player.name} drew a card.")
+        self.game_log.append(f"\033[1;33m{self.current_player.name} drew a card.\033[0m")
         self.phase = "summon1"
 
     def summon_phase(self, phase_name):
@@ -118,46 +214,46 @@ class Game:
             self.display_game_state()
             action = input(f"{phase_name.capitalize()} Phase - Choose action: play, pass, help: ").strip().lower()
             if action == "play":
-                card_index = int(input("Choose card index to play: "))
+                card_index = int(input("Choose card index to play: ")) - 1
                 card = self.current_player.play_card(card_index, self.opponent)
                 if not card:
                     print("Not enough energy to play this card.")
-                    self.game_log.append(f"{self.current_player.name} tried to play a card but didn't have enough energy.")
+                    self.game_log.append(f"\033[1;33m{self.current_player.name} tried to play a card but didn't have enough energy.\033[0m")
                 else:
                     if card.card_type == 'creature':
-                        self.game_log.append(f"{self.current_player.name} played {card}.")
+                        self.game_log.append(f"\033[1;32m{self.current_player.name} played {card}.\033[0m")
                     elif card.card_type == 'spell':
-                        self.game_log.append(f"{self.current_player.name} cast {card}.")
+                        self.game_log.append(f"\033[1;32m{self.current_player.name} cast {card}.\033[0m")
                     elif card.card_type == 'equipment':
-                        self.game_log.append(f"{self.current_player.name} equipped {card}.")
+                        self.game_log.append(f"\033[1;32m{self.current_player.name} equipped {card}.\033[0m")
             elif action == "pass":
-                self.game_log.append(f"{self.current_player.name} passed the {phase_name} phase.")
+                self.game_log.append(f"\033[1;33m{self.current_player.name} passed the {phase_name} phase.\033[0m")
                 break
             elif action == "help":
                 print("Available actions: play, pass, help")
                 input("Press Enter to continue...")
             else:
                 print("Invalid action.")
-                self.game_log.append(f"{self.current_player.name} chose an invalid action.")
+                self.game_log.append(f"\033[1;33m{self.current_player.name} chose an invalid action.\033[0m")
 
     def attack_phase(self):
         self.display_game_state()
         action = input("Attack Phase - Choose action: attack, pass, help: ").strip().lower()
         if action == "attack":
-            self.current_player.attack(self.opponent)
-            self.game_log.append(f"{self.current_player.name} attacked {self.opponent.name}.")
+            self.current_player.attack(self.opponent, self)
+            self.game_log.append(f"\033[1;31m{self.current_player.name} attacked {self.opponent.name}.\033[0m")
         elif action == "pass":
-            self.game_log.append(f"{self.current_player.name} passed the attack phase.")
+            self.game_log.append(f"\033[1;33m{self.current_player.name} passed the attack phase.\033[0m")
         elif action == "help":
             print("Available actions: attack, pass, help")
             input("Press Enter to continue...")
         else:
             print("Invalid action.")
-            self.game_log.append(f"{self.current_player.name} chose an invalid action.")
+            self.game_log.append(f"\033[1;33m{self.current_player.name} chose an invalid action.\033[0m")
 
     def end_phase(self):
         self.switch_turn()
-        self.game_log.append(f"{self.current_player.name} ended their turn.")
+        self.game_log.append(f"\033[1;33m{self.current_player.name} ended their turn.\033[0m")
 
     def ai_turn(self):
         self.current_player = self.player2
@@ -166,18 +262,37 @@ class Game:
         # AI Summon Phase 1
         for i, card in enumerate(self.current_player.hand):
             if card.cost <= self.current_player.energy:
-                self.current_player.play_card(i, self.opponent)
-                self.game_log.append(f"{self.current_player.name} played {card}.")
-                break
+                if card.card_type == 'creature':
+                    self.current_player.play_card(i, self.opponent)
+                    self.game_log.append(f"\033[1;32m{self.current_player.name} played {card}.\033[0m")
+                    break
+                elif card.card_type == 'equipment' and self.current_player.board:
+                    self.current_player.play_card(i, self.opponent)
+                    self.game_log.append(f"\033[1;32m{self.current_player.name} equipped {card}.\033[0m")
+                    break
+                elif card.card_type == 'spell':
+                    self.current_player.play_card(i, self.opponent)
+                    self.game_log.append(f"\033[1;32m{self.current_player.name} cast {card}.\033[0m")
+                    break
         # AI Attack Phase
-        self.current_player.attack(self.opponent)
-        self.game_log.append(f"{self.current_player.name} attacked {self.opponent.name}.")
+        if self.current_player.board:
+            self.current_player.attack(self.opponent, self)
+            self.game_log.append(f"\033[1;31m{self.current_player.name} attacked {self.opponent.name}.\033[0m")
         # AI Summon Phase 2
         for i, card in enumerate(self.current_player.hand):
             if card.cost <= self.current_player.energy:
-                self.current_player.play_card(i, self.opponent)
-                self.game_log.append(f"{self.current_player.name} played {card}.")
-                break
+                if card.card_type == 'creature':
+                    self.current_player.play_card(i, self.opponent)
+                    self.game_log.append(f"\033[1;32m{self.current_player.name} played {card}.\033[0m")
+                    break
+                elif card.card_type == 'equipment' and self.current_player.board:
+                    self.current_player.play_card(i, self.opponent)
+                    self.game_log.append(f"\033[1;32m{self.current_player.name} equipped {card}.\033[0m")
+                    break
+                elif card.card_type == 'spell':
+                    self.current_player.play_card(i, self.opponent)
+                    self.game_log.append(f"\033[1;32m{self.current_player.name} cast {card}.\033[0m")
+                    break
         self.end_phase()
         self.current_player = self.player1
         self.opponent = self.player2
@@ -218,7 +333,7 @@ class Game:
             input("Press Enter to continue...")
         elif command.startswith("info"):
             try:
-                card_index = int(command.split()[1])
+                card_index = int(command.split()[1]) - 1
                 print(self.current_player.hand[card_index])
                 input("Press Enter to continue...")
             except (IndexError, ValueError):

@@ -1,7 +1,9 @@
 import random
+import uuid
 
 class Card:
     def __init__(self, name, attack=0, defense=0, cost=0, card_type='creature', description=''):
+        self.id = uuid.uuid4()  # Unique identifier for each card instance
         self.name = name
         self.attack = attack
         self.defense = defense
