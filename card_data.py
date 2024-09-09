@@ -11,7 +11,8 @@ def create_deck():
         Card("Energy Boost", 0, 0, 1, "Gain 2 energy.", "spell"),
         Card("Spore Burst", 0, 0, 2, "Deal 3 damage to the opponent.", "spell"),
         Card("Fungal Shield", 0, 0, 1, "Equip to a creature to give it +1 DEF.", "equipment"),
-        Card("Cyber Blade", 0, 0, 2, "Equip to a creature to give it +2 ATK.", "equipment")
+        Card("Cyber Blade", 0, 0, 2, "Equip to a creature to give it +2 ATK.", "equipment"),
+        Card("Land Enchantment", 0, 0, 1, "Gives +0.5 energy per turn.", "enchantment"),
     ] * 3
     random.shuffle(deck)
     return deck

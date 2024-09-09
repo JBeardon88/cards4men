@@ -2,6 +2,7 @@ import random
 from card_data import create_deck
 from copy import deepcopy
 from card import Card
+from display import display_game_state
 
 class Player:
     def __init__(self, name, is_human=True):
@@ -11,6 +12,7 @@ class Player:
         self.deck = create_deck()
         self.hand = []
         self.board = []
+        self.environment = []
         self.draw_initial_hand()
         self.attacked_this_turn = []
         self.is_human = is_human
@@ -54,9 +56,14 @@ class Player:
                     else:
                         print("No creatures to equip the card to.")
                         self.energy += card.cost  # Refund energy if no valid target
+                elif card.card_type == 'enchantment':
+                    self.environment.append(card)
+                    self.hand.pop(card_index)
+                    return card
             else:
                 print("Not enough energy to play this card.")
         return None
+    
 
     def cast_spell(self, card, opponent):
         if card.name == "Energy Boost":
@@ -147,7 +154,7 @@ class Player:
     def choose_attackers(self, game):
         attackers = []
         while True:
-            game.display_game_state()
+            display_game_state(game)  # Use the imported function
             action = input(f"{self.name}, choose attackers (comma separated indices) or 'done' or 'all': ").strip().lower()
             if action == 'done':
                 break
@@ -228,6 +235,16 @@ class Player:
 
     def reset_attacks(self):
         self.attacked_this_turn = []
+
+
+
+    def end_phase(self):
+        # Perform any end-of-turn actions here
+        self.attacked_this_turn = []  # Reset the list of creatures that attacked this turn
+        # Apply environment effects
+        for card in self.environment:
+            if card.name == "Land Enchantment":
+                self.energy += 0.5
 
     def __str__(self):
         return f"{self.name} - Life: {self.life}, Energy: {self.energy}, Deck: {len(self.deck)} cards"
