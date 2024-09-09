@@ -25,6 +25,10 @@ class Player:
             self.hand.append(card)
             return card
         return None
+    
+    def untap_all(self):
+        for card in self.board:
+            card.untap()
 
     def play_card(self, card_index, opponent):
         if 0 <= card_index < len(self.hand):
@@ -86,17 +90,24 @@ class Player:
                 target.attack += 2
             self.hand.pop(card_index)
 
-    def attack(self, opponent, game):
-        if self.is_human:
-            attackers = self.choose_attackers(game)
-        else:
-            attackers = self.ai_choose_attackers()
+
+
+    def attack(self, opponent, game, attackers=None, blockers=None):
+        if attackers is None:
+            if self.is_human:
+                attackers = self.choose_attackers(game)
+            else:
+                attackers = self.ai_choose_attackers()
 
         if not attackers:
             print("No creatures to attack with.")
             return
 
-        game.game_log.append(f"\033[1;31m{self.name} is attacking with {[i+1 for i in range(len(attackers))]}.\033[0m")
+        game.game_log.append(f"\033[1;31m{self.name} is attacking with {[str(a) for a in attackers]}.\033[0m")
+
+        # Tap all attacking creatures
+        for attacker in attackers:
+            attacker.tap()
 
         if not opponent.board:
             for attacker in attackers:
@@ -104,13 +115,14 @@ class Player:
                 self.attacked_this_turn.append(attacker)
             game.game_log.append(f"\033[1;31m{self.name} attacked {opponent.name} directly with {len(attackers)} creatures.\033[0m")
         else:
-            if opponent.is_human:
-                blockers = opponent.choose_blockers(game, attackers)
-            else:
-                blockers = opponent.ai_choose_blockers()
+            if blockers is None:
+                if opponent.is_human:
+                    blockers = opponent.choose_blockers(game, attackers)
+                else:
+                    blockers = opponent.ai_choose_blockers(attackers)
 
             for attacker, blocker in zip(attackers, blockers):
-                if blocker:
+                if blocker and not blocker.tapped:  # Check if blocker is still untapped
                     game.game_log.append(f"\033[1;34m{blocker.name} blocks {attacker.name}.\033[0m")
                     attacker.defense -= blocker.attack
                     blocker.defense -= attacker.attack
@@ -124,33 +136,49 @@ class Player:
                 else:
                     opponent.life -= attacker.attack
                     self.attacked_this_turn.append(attacker)
+                    if blocker:
+                        game.game_log.append(f"\033[1;31m{blocker.name} was unable to block {attacker.name}.\033[0m")
 
-            game.game_log.append(f"\033[1;31m{self.name} attacked {opponent.name} with {len(attackers)} creatures, {len([b for b in blockers if b])} were blocked.\033[0m")
+            game.game_log.append(f"\033[1;31m{self.name} attacked {opponent.name} with {len(attackers)} creatures, {len([b for b in blockers if b and not b.tapped])} were blocked.\033[0m")
+
+
+
 
     def choose_attackers(self, game):
         attackers = []
         while True:
             game.display_game_state()
-            action = input(f"{self.name}, choose attackers (comma separated indices) or 'done': ").strip().lower()
+            action = input(f"{self.name}, choose attackers (comma separated indices) or 'done' or 'all': ").strip().lower()
             if action == 'done':
+                break
+            elif action == 'all':
+                attackers = [creature for creature in self.board if not creature.tapped and creature not in self.attacked_this_turn]
                 break
             try:
                 indices = list(map(lambda x: int(x) - 1, action.split(',')))
-                for index in indices:
-                    if 0 <= index < len(self.board) and self.board[index] not in self.attacked_this_turn:
-                        attackers.append(self.board[index])
-                break
+                valid_indices = [index for index in indices if 0 <= index < len(self.board) and not self.board[index].tapped and self.board[index] not in self.attacked_this_turn]
+                if valid_indices:
+                    attackers = [self.board[index] for index in valid_indices]
+                    break
+                else:
+                    print("No valid attackers selected. Please choose valid indices.")
             except ValueError:
                 print("Invalid input. Please enter comma separated indices.")
         return attackers
 
+
     def choose_blockers(self, game, attackers):
+        if not self.board:
+            return [None] * len(attackers)  # No blockers if the player has no creatures
+
         blockers = [None] * len(attackers)
+        indices = []
+
         while True:
             game.display_game_state()
-            action = input(f"{self.name}, choose attackers to block (comma separated indices) or 'done' to skip: ").strip().lower()
+            action = input(f"{self.name}, choose attackers to block (comma separated indices) or 'done': ").strip().lower()
             if action == 'done':
-                return blockers  # No blockers, attack goes through
+                return blockers
             try:
                 indices = list(map(lambda x: int(x) - 1, action.split(',')))
                 if all(0 <= index < len(attackers) for index in indices):
@@ -160,23 +188,43 @@ class Player:
         
         while True:
             game.display_game_state()
-            action = input(f"{self.name}, assign blockers (comma separated indices): ").strip().lower()
+            action = input(f"{self.name}, assign blockers (comma separated indices) or 'done': ").strip().lower()
+            if action == 'done':
+                return blockers
             try:
                 blocker_indices = list(map(lambda x: int(x) - 1, action.split(',')))
                 if len(blocker_indices) == len(indices):
                     for blocker_index, attacker_index in zip(blocker_indices, indices):
                         if 0 <= blocker_index < len(self.board):
                             blockers[attacker_index] = self.board[blocker_index]
+                        else:
+                            print(f"Invalid blocker at index {blocker_index + 1}. Skipping.")
                     break
             except ValueError:
                 print("Invalid input. Please enter comma separated indices.")
         return blockers
 
-    def ai_choose_attackers(self):
-        return random.sample(self.board, min(len(self.board), random.randint(1, 3)))
 
-    def ai_choose_blockers(self):
-        return [random.choice(self.board) if random.random() > 0.5 else None for _ in range(len(self.board))]
+
+    def ai_choose_attackers(self):
+        return [card for card in self.board if not card.tapped and card not in self.attacked_this_turn]
+
+
+
+    def ai_choose_blockers(self, attackers):
+        if not self.board:
+            return [None] * len(attackers)  # No blockers if the AI has no creatures
+
+        blockers = [None] * len(attackers)
+        available_blockers = [card for card in self.board if not card.tapped]
+        
+        for i, attacker in enumerate(attackers):
+            if available_blockers and random.random() > 0.3:  # 70% chance to block if possible
+                blocker = random.choice(available_blockers)
+                blockers[i] = blocker
+                available_blockers.remove(blocker)
+        
+        return blockers
 
     def reset_attacks(self):
         self.attacked_this_turn = []

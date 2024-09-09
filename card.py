@@ -11,6 +11,12 @@ class Card:
         self.tapped = False
         self.summoning_sickness = True
 
+    def tap(self):
+        self.tapped = True
+
+    def untap(self):
+        self.tapped = False
+
 
     def reset_stats(self):
         self.attack = self.base_attack
@@ -19,5 +25,7 @@ class Card:
     def __str__(self):
         return f"{self.name} (ATK: {self.attack}, DEF: {self.defense}, E:{self.cost}) - {self.description}"
 
+
     def get_stats_display(self):
-        return f"{self.name} ({self.attack}/{self.defense})"
+        name_display = f"~~{self.name}~~" if self.tapped else self.name
+        return f"{name_display} ({self.attack}/{self.defense})"
