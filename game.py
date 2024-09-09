@@ -86,6 +86,8 @@ class Player:
             print("No creatures to attack with.")
             return
 
+        game.game_log.append(f"\033[1;31m{self.name} is attacking with {[i+1 for i in range(len(attackers))]}.\033[0m")
+
         if not opponent.board:
             for attacker in attackers:
                 opponent.life -= attacker.attack
@@ -93,24 +95,27 @@ class Player:
             game.game_log.append(f"\033[1;31m{self.name} attacked {opponent.name} directly with {len(attackers)} creatures.\033[0m")
         else:
             if opponent.is_human:
-                blockers = opponent.choose_blockers(game)
+                blockers = opponent.choose_blockers(game, attackers)
             else:
                 blockers = opponent.ai_choose_blockers()
 
             for attacker, blocker in zip(attackers, blockers):
-                attacker.defense -= blocker.attack
-                blocker.defense -= attacker.attack
-                if attacker.defense <= 0:
-                    self.board.remove(attacker)
-                if blocker.defense <= 0:
-                    opponent.board.remove(blocker)
-                self.attacked_this_turn.append(attacker)
+                if blocker:
+                    game.game_log.append(f"\033[1;34m{blocker.name} blocks {attacker.name}.\033[0m")
+                    attacker.defense -= blocker.attack
+                    blocker.defense -= attacker.attack
+                    if attacker.defense <= 0:
+                        game.game_log.append(f"\033[1;31m{attacker.name} is destroyed.\033[0m")
+                        self.board.remove(attacker)
+                    if blocker.defense <= 0:
+                        game.game_log.append(f"\033[1;31m{blocker.name} is destroyed.\033[0m")
+                        opponent.board.remove(blocker)
+                    self.attacked_this_turn.append(attacker)
+                else:
+                    opponent.life -= attacker.attack
+                    self.attacked_this_turn.append(attacker)
 
-            remaining_attackers = attackers[len(blockers):]
-            for attacker in remaining_attackers:
-                opponent.life -= attacker.attack
-                self.attacked_this_turn.append(attacker)
-            game.game_log.append(f"\033[1;31m{self.name} attacked {opponent.name} with {len(attackers)} creatures, {len(blockers)} were blocked.\033[0m")
+            game.game_log.append(f"\033[1;31m{self.name} attacked {opponent.name} with {len(attackers)} creatures, {len([b for b in blockers if b])} were blocked.\033[0m")
 
     def choose_attackers(self, game):
         attackers = []
@@ -129,19 +134,30 @@ class Player:
                 print("Invalid input. Please enter comma separated indices.")
         return attackers
 
-    def choose_blockers(self, game):
-        blockers = []
+    def choose_blockers(self, game, attackers):
+        blockers = [None] * len(attackers)
         while True:
             game.display_game_state()
-            action = input(f"{self.name}, choose blockers (comma separated indices) or 'done': ").strip().lower()
+            action = input(f"{self.name}, choose attackers to block (comma separated indices) or 'done' to skip: ").strip().lower()
             if action == 'done':
-                break
+                return blockers  # No blockers, attack goes through
             try:
                 indices = list(map(lambda x: int(x) - 1, action.split(',')))
-                for index in indices:
-                    if 0 <= index < len(self.board):
-                        blockers.append(self.board[index])
-                break
+                if all(0 <= index < len(attackers) for index in indices):
+                    break
+            except ValueError:
+                print("Invalid input. Please enter comma separated indices.")
+        
+        while True:
+            game.display_game_state()
+            action = input(f"{self.name}, assign blockers (comma separated indices): ").strip().lower()
+            try:
+                blocker_indices = list(map(lambda x: int(x) - 1, action.split(',')))
+                if len(blocker_indices) == len(indices):
+                    for blocker_index, attacker_index in zip(blocker_indices, indices):
+                        if 0 <= blocker_index < len(self.board):
+                            blockers[attacker_index] = self.board[blocker_index]
+                    break
             except ValueError:
                 print("Invalid input. Please enter comma separated indices.")
         return blockers
@@ -150,7 +166,7 @@ class Player:
         return random.sample(self.board, min(len(self.board), random.randint(1, 3)))
 
     def ai_choose_blockers(self):
-        return random.sample(self.board, min(len(self.board), random.randint(1, 3)))
+        return [random.choice(self.board) if random.random() > 0.5 else None for _ in range(len(self.board))]
 
     def reset_attacks(self):
         self.attacked_this_turn = []
@@ -192,15 +208,16 @@ class Game:
         print("__________________________")
         print(f"\033[1;32mHuman - Life: {self.player1.life}, Energy: {self.player1.energy}, Deck: {len(self.player1.deck)} cards\033[0m")
         print("CARDS IN HAND:")
+        print(f"{'Index':<6} {'Name':<20} {'Type':<10} {'Energy Cost':<12} {'Attack/Def':<10} {'Info'}")
         for i, card in enumerate(self.player1.hand):
-            print(f"{i+1}: {card}")
+            print(f"{i+1:<6} {card.name:<20} {card.card_type:<10} {card.cost:<12} {f'{card.attack}/{card.defense}':<10} {card.description}")
         print("__________________________")
         print("Game Log:")
         if full_log:
             for log in self.game_log:
                 print(log)
         else:
-            for log in self.game_log[-5:]:
+            for log in self.game_log[-10:]:
                 print(log)
         print("__________________________")
 
@@ -252,46 +269,65 @@ class Game:
             self.game_log.append(f"\033[1;33m{self.current_player.name} chose an invalid action.\033[0m")
 
     def end_phase(self):
+        if self.current_player.is_human:
+            self.game_log.append(f"\033[1;33m{self.current_player.name} ended their turn.\033[0m")
+        else:
+            self.game_log.append(f"\033[3;33m{self.current_player.name} ended their turn.\033[0m")  # Italics for AI
         self.switch_turn()
-        self.game_log.append(f"\033[1;33m{self.current_player.name} ended their turn.\033[0m")
 
     def ai_turn(self):
         self.current_player = self.player2
         self.opponent = self.player1
         self.draw_phase()
+        self.display_game_state()
+        input("Press Enter to acknowledge AI's draw phase...")  # Acknowledge AI's draw phase
         # AI Summon Phase 1
         for i, card in enumerate(self.current_player.hand):
             if card.cost <= self.current_player.energy:
                 if card.card_type == 'creature':
                     self.current_player.play_card(i, self.opponent)
-                    self.game_log.append(f"\033[1;32m{self.current_player.name} played {card}.\033[0m")
+                    self.game_log.append(f"\033[3;32m{self.current_player.name} played {card}.\033[0m")  # Italics for AI
+                    self.display_game_state()
+                    input("Press Enter to acknowledge AI's action...")  # Acknowledge AI's action
                     break
                 elif card.card_type == 'equipment' and self.current_player.board:
                     self.current_player.play_card(i, self.opponent)
-                    self.game_log.append(f"\033[1;32m{self.current_player.name} equipped {card}.\033[0m")
+                    self.game_log.append(f"\033[3;32m{self.current_player.name} equipped {card}.\033[0m")  # Italics for AI
+                    self.display_game_state()
+                    input("Press Enter to acknowledge AI's action...")  # Acknowledge AI's action
                     break
                 elif card.card_type == 'spell':
                     self.current_player.play_card(i, self.opponent)
-                    self.game_log.append(f"\033[1;32m{self.current_player.name} cast {card}.\033[0m")
+                    self.game_log.append(f"\033[3;32m{self.current_player.name} cast {card}.\033[0m")  # Italics for AI
+                    self.display_game_state()
+                    input("Press Enter to acknowledge AI's action...")  # Acknowledge AI's action
                     break
         # AI Attack Phase
         if self.current_player.board:
             self.current_player.attack(self.opponent, self)
-            self.game_log.append(f"\033[1;31m{self.current_player.name} attacked {self.opponent.name}.\033[0m")
+            self.game_log.append(f"\033[3;31m{self.current_player.name} attacked {self.opponent.name}.\033[0m")  # Italics for AI
+            self.display_game_state()
+            input("Press Enter to acknowledge AI's attack...")  # Acknowledge AI's attack
         # AI Summon Phase 2
         for i, card in enumerate(self.current_player.hand):
             if card.cost <= self.current_player.energy:
                 if card.card_type == 'creature':
                     self.current_player.play_card(i, self.opponent)
-                    self.game_log.append(f"\033[1;32m{self.current_player.name} played {card}.\033[0m")
+                    self.game_log.append(f"\033[3;32m{self.current_player.name} played {card}.\033[0m")  # Italics for AI
+                    self.display_game_state()
+                    input("Press Enter to acknowledge AI's action...")  # Acknowledge AI's action
                     break
                 elif card.card_type == 'equipment' and self.current_player.board:
                     self.current_player.play_card(i, self.opponent)
-                    self.game_log.append(f"\033[1;32m{self.current_player.name} equipped {card}.\033[0m")
+                    self.game_log.append(f"\033[3;32m{self.current_player.name} equipped {card}.\033[0m")  # Italics for AI
+                    self.display_game_state()
+                    input("Press Enter to acknowledge AI's action...")  # Acknowledge AI's action
                     break
                 elif card.card_type == 'spell':
                     self.current_player.play_card(i, self.opponent)
-                    self.game_log.append(f"\033[1;32m{self.current_player.name} cast {card}.\033[0m")
+                    self.game_log.append(f"\033[3;32m{self.current_player.name} cast {card}.\033[0m")  # Italics for AI
+                    self.display_game_state()
+                    input("Press Enter to acknowledge AI's action...")  # Acknowledge AI's action
                     break
         self.end_phase()
         self.current_player = self.player1

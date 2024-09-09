@@ -12,18 +12,12 @@ Follow these steps to install and run the game:
     cd cards4men
     
 
-2. **Create a Virtual Environment** (optional but recommended):
-    
-    python -m venv venv
-    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-    
-
-3. **Install Dependencies**:
+2. **Install Dependencies**: use terminal / command prompt / powershell to run stuff
     
     pip install -r requirements.txt
     
 
-4. **Run the Game**:
+3. **Run the Game**:
     
     python game.py
     
