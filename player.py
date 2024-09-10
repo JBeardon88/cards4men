@@ -5,7 +5,7 @@ from card import Card
 from display import display_game_state
 
 class Player:
-    def __init__(self, name, is_human=True):
+    def __init__(self, name, is_human=True, game_log=None):
         self.name = name
         self.life = 20
         self.energy = 2
@@ -16,6 +16,7 @@ class Player:
         self.draw_initial_hand()
         self.attacked_this_turn = []
         self.is_human = is_human
+        self.game_log = game_log if game_log is not None else []  # Ensure game_log is initialized
 
     def draw_initial_hand(self):
         for _ in range(5):
@@ -64,12 +65,21 @@ class Player:
                 print("Not enough energy to play this card.")
         return None
     
-
-    def cast_spell(self, card, opponent):
-        if card.name == "Energy Boost":
-            self.energy += 2
-        elif card.name == "Spore Burst":
+    def cast_spell(self, card, opponent, target=None):
+        if card.name == "Spore Burst":
             opponent.life -= 3
+            self.game_log.append(f"{self.name} cast {card.name}, dealing 3 damage to the opponent.")
+        elif card.name == "Gun Blast":
+            if target:
+                target.defense -= 3
+                self.game_log.append(f"{self.name} cast {card.name}, dealing 3 damage to {target.name}.")
+                if target.defense <= 0:
+                    opponent.board.remove(target)
+                    self.game_log.append(f"{target.name} was destroyed.")
+        elif card.name == "Energy Boost":
+            self.energy += 2
+            self.game_log.append(f"{self.name} cast {card.name}, gaining 2 energy.")
+        # Add more spells as needed
 
     def equip_card(self, card, card_index):
         while True:
@@ -96,8 +106,6 @@ class Player:
             elif card.name == "Cyber Blade":
                 target.attack += 2
             self.hand.pop(card_index)
-
-
 
     def attack(self, opponent, game, attackers=None, blockers=None):
         if attackers is None:
@@ -147,10 +155,7 @@ class Player:
                         game.game_log.append(f"\033[1;31m{blocker.name} was unable to block {attacker.name}.\033[0m")
 
             game.game_log.append(f"\033[1;31m{self.name} attacked {opponent.name} with {len(attackers)} creatures, {len([b for b in blockers if b and not b.tapped])} were blocked.\033[0m")
-
-
-
-
+    
     def choose_attackers(self, game):
         attackers = []
         while True:
@@ -173,7 +178,6 @@ class Player:
                 print("Invalid input. Please enter comma separated indices.")
         return attackers
 
-
     def choose_blockers(self, game, attackers):
         if not self.board:
             return [None] * len(attackers)  # No blockers if the player has no creatures
@@ -182,7 +186,7 @@ class Player:
         indices = []
 
         while True:
-            game.display_game_state()
+            display_game_state(game)
             action = input(f"{self.name}, choose attackers to block (comma separated indices) or 'done': ").strip().lower()
             if action == 'done':
                 return blockers
@@ -194,7 +198,7 @@ class Player:
                 print("Invalid input. Please enter comma separated indices.")
         
         while True:
-            game.display_game_state()
+            display_game_state(game)
             action = input(f"{self.name}, assign blockers (comma separated indices) or 'done': ").strip().lower()
             if action == 'done':
                 return blockers
@@ -211,19 +215,12 @@ class Player:
                 print("Invalid input. Please enter comma separated indices.")
         return blockers
 
-
-
     def ai_choose_attackers(self):
         return [card for card in self.board if not card.tapped and card not in self.attacked_this_turn]
 
-
-
     def ai_choose_blockers(self, attackers):
-        if not self.board:
-            return [None] * len(attackers)  # No blockers if the AI has no creatures
-
         blockers = [None] * len(attackers)
-        available_blockers = [card for card in self.board if not card.tapped]
+        available_blockers = [creature for creature in self.board if not creature.tapped]
         
         for i, attacker in enumerate(attackers):
             if available_blockers and random.random() > 0.3:  # 70% chance to block if possible
@@ -235,8 +232,6 @@ class Player:
 
     def reset_attacks(self):
         self.attacked_this_turn = []
-
-
 
     def end_phase(self):
         # Perform any end-of-turn actions here
