@@ -9,6 +9,7 @@ class Card:
         self.description = description
         self.card_type = card_type
         self.effects = effects if effects is not None else []
+        self.equipment = None #init - just getting the slot active
         self.tapped = False
         self.summoning_sickness = True
 
