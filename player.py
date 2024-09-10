@@ -5,11 +5,11 @@ from card import Card
 from display import display_game_state
 
 class Player:
-    def __init__(self, name, is_human=True, game_log=None):
+    def __init__(self, name, deck=None, is_human=True, game_log=None):
         self.name = name
         self.life = 20
-        self.energy = 2
-        self.deck = create_deck()
+        self.energy = 1
+        self.deck = deck if deck is not None else create_deck("card_data.json")
         self.hand = []
         self.board = []
         self.environment = []
@@ -17,6 +17,7 @@ class Player:
         self.attacked_this_turn = []
         self.is_human = is_human
         self.game_log = game_log if game_log is not None else []  # Ensure game_log is initialized
+
 
     def draw_initial_hand(self):
         for _ in range(5):

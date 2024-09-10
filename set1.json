@@ -1,0 +1,90 @@
+[
+    {
+        "name": "Cyber Myconid",
+        "attack": 2,
+        "defense": 2,
+        "cost": 1,
+        "description": "A cyber-enhanced mushroom warrior.",
+        "card_type": "creature"
+    },
+    {
+        "name": "Spore Hacker",
+        "attack": 3,
+        "defense": 1,
+        "cost": 2,
+        "description": "A hacker that uses spores to disrupt technology.",
+        "card_type": "creature"
+    },
+    {
+        "name": "Fungal Drone",
+        "attack": 1,
+        "defense": 3,
+        "cost": 1,
+        "description": "A drone controlled by fungal networks.",
+        "card_type": "creature"
+    },
+    {
+        "name": "Mushroom Shaman",
+        "attack": 2,
+        "defense": 2,
+        "cost": 2,
+        "description": "A shaman that channels the power of mushrooms.",
+        "card_type": "creature"
+    },
+    {
+        "name": "Techno Shroom",
+        "attack": 4,
+        "defense": 4,
+        "cost": 3,
+        "description": "A powerful mushroom infused with technology.",
+        "card_type": "creature"
+    },
+    {
+        "name": "Energy Boost",
+        "attack": 0,
+        "defense": 0,
+        "cost": 1,
+        "description": "Gain 2 energy.",
+        "card_type": "spell"
+    },
+    {
+        "name": "Spore Burst",
+        "attack": 0,
+        "defense": 0,
+        "cost": 2,
+        "description": "Deal 3 damage to the opponent.",
+        "card_type": "spell"
+    },
+    {
+        "name": "Gun Blast",
+        "attack": 0,
+        "defense": 0,
+        "cost": 2,
+        "description": "Deal 3 damage to target enemy creature.",
+        "card_type": "spell"
+    },
+    {
+        "name": "Fungal Shield",
+        "attack": 0,
+        "defense": 0,
+        "cost": 1,
+        "description": "Equip to a creature to give it +1 DEF.",
+        "card_type": "equipment"
+    },
+    {
+        "name": "Cyber Blade",
+        "attack": 0,
+        "defense": 0,
+        "cost": 2,
+        "description": "Equip to a creature to give it +2 ATK.",
+        "card_type": "equipment"
+    },
+    {
+        "name": "Land Enchantment",
+        "attack": 0,
+        "defense": 0,
+        "cost": 3,
+        "description": "Gives +0.5 energy per turn.",
+        "card_type": "enchantment"
+    }
+]

@@ -1,0 +1,162 @@
+[
+    {
+        "name": "Sporeling",
+        "attack": 1,
+        "defense": 1,
+        "cost": 3,
+        "description": "At the end of each turn, gain +1 attack.",
+        "card_type": "creature"
+    },
+    {
+        "name": "Mycelium Sprout",
+        "attack": 1,
+        "defense": 2,
+        "cost": 2,
+        "description": "At the start of your turn, gain +1 defense.",
+        "card_type": "creature"
+    },
+    {
+        "name": "Fungal Guardian",
+        "attack": 2,
+        "defense": 3,
+        "cost": 4,
+        "description": "Gains +1 attack at the start of each turn.",
+        "card_type": "creature"
+    },
+    {
+        "name": "Spore Brute",
+        "attack": 3,
+        "defense": 3,
+        "cost": 2,
+        "description": "",
+        "card_type": "creature"
+    },
+    {
+        "name": "Mushroom Hulk",
+        "attack": 4,
+        "defense": 4,
+        "cost": 3,
+        "description": "",
+        "card_type": "creature"
+    },
+    {
+        "name": "Mycelium Crawler",
+        "attack": 2,
+        "defense": 4,
+        "cost": 4,
+        "description": "At the start of your turn, gains +1 attack if enemy has a creature.",
+        "card_type": "creature"
+    },
+    {
+        "name": "Fungal Colossus",
+        "attack": 5,
+        "defense": 5,
+        "cost": 6,
+        "description": "At the start of each turn, gains +1 defense.",
+        "card_type": "creature"
+    },
+    {
+        "name": "Spore Infester",
+        "attack": 3,
+        "defense": 3,
+        "cost": 3,
+        "description": "Gains +1 to energy when it attacks.",
+        "card_type": "creature"
+    },
+    {
+        "name": "Spreading Mycelium",
+        "attack": 0,
+        "defense": 0,
+        "cost": 3,
+        "description": "+1 to energy regen.",
+        "card_type": "enchantment"
+    },
+    {
+        "name": "Energy Bloom",
+        "attack": 0,
+        "defense": 0,
+        "cost": 2,
+        "description": "At the end of your turn, gain 1 energy if you damaged the opponent.",
+        "card_type": "enchantment"
+    },
+    {
+        "name": "Fungal Rage",
+        "attack": 0,
+        "defense": 0,
+        "cost": 3,
+        "description": "All creatures you control gain +1 to attack.",
+        "card_type": "enchantment"
+    },
+    {
+        "name": "Regrowth Spores",
+        "attack": 0,
+        "defense": 0,
+        "cost": 2,
+        "description": "At the end of each turn, heal 2 damage from all creatures you control. A creature cannot heal more than their normal def.",
+        "card_type": "enchantment"
+    },
+    {
+        "name": "Spore Burst",
+        "attack": 0,
+        "defense": 0,
+        "cost": 1,
+        "description": "Deal 2 damage to the opponent's life.",
+        "card_type": "spell"
+    },
+    {
+        "name": "Energy Drain",
+        "attack": 0,
+        "defense": 0,
+        "cost": 3,
+        "description": "Deal 3 damage to a target creature.",
+        "card_type": "spell"
+    },
+    {
+        "name": "Fungal Insight",
+        "attack": 0,
+        "defense": 0,
+        "cost": 3,
+        "description": "Draw 2 cards.",
+        "card_type": "spell"
+    },
+    {
+        "name": "Mushroom Vision",
+        "attack": 0,
+        "defense": 0,
+        "cost": 1,
+        "description": "Draw 3 cards. Lose 3 life.",
+        "card_type": "spell"
+    },
+    {
+        "name": "Spore Shield",
+        "attack": 0,
+        "defense": 0,
+        "cost": 2,
+        "description": "Equip to a creature. That creature gains +2 defense.",
+        "card_type": "equipment"
+    },
+    {
+        "name": "Fungal Blade",
+        "attack": 0,
+        "defense": 0,
+        "cost": 3,
+        "description": "Equip to a creature. That creature gains +2 attack.",
+        "card_type": "equipment"
+    },
+    {
+        "name": "Spore Infector",
+        "attack": 0,
+        "defense": 0,
+        "cost": 2,
+        "description": "Equip to an enemy creature. That creature loses 1 attack.",
+        "card_type": "equipment"
+    },
+    {
+        "name": "Mushroom Parasite",
+        "attack": 0,
+        "defense": 0,
+        "cost": 4,
+        "description": "Equip to an enemy creature. That creature is tapped and does not untap.",
+        "card_type": "equipment"
+    }
+]

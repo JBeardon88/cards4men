@@ -3,12 +3,13 @@ import time
 import random
 from player import Player
 from display import display_game_state  # Import the display_game_state function
+from card_data import create_deck
 
 class Game:
-    def __init__(self):
+    def __init__(self, card_data_file):
         self.game_log = []  # Initialize game_log before creating players
-        self.player1 = Player("Human", game_log=self.game_log)
-        self.player2 = Player("AI", is_human=False, game_log=self.game_log)
+        self.player1 = Player("Human", deck=create_deck(card_data_file), game_log=self.game_log)
+        self.player2 = Player("AI", is_human=False, deck=create_deck(card_data_file), game_log=self.game_log)
         self.current_player = self.player1
         self.opponent = self.player2
         self.turn = 1
@@ -19,8 +20,9 @@ class Game:
         while self.player1.life > 0 and self.player2.life > 0:
             if not self.showing_game_log:
                 display_game_state(self)  # Use the imported function
-                print(f"Debug: Current player: {self.current_player.name}")
-                print(f"Debug: Current player hand: {[card.name for card in self.current_player.hand]}")
+                # Comment out the debug print lines
+                # print(f"Debug: Current player: {self.current_player.name}")
+                # print(f"Debug: Current player hand: {[card.name for card in self.current_player.hand]}")
             
             if self.current_player.is_human:
                 self.human_turn()
@@ -236,13 +238,10 @@ class Game:
         self.showing_game_log = False
         display_game_state(self)  # Use the imported function
 
-    
-    
-    
-    
     def clear_screen(self):
         os.system('cls' if os.name == 'nt' else 'clear')
-        
+
 if __name__ == "__main__":
-    game = Game()
+    card_set_file = 'set1.json'  # Change this to switch card sets
+    game = Game(card_set_file)
     game.play()
