@@ -1,23 +1,42 @@
 import random
-from card_data import create_deck
+from card_data import create_deck, apply_card_effects, effect_handlers
 from copy import deepcopy
 from card import Card
 from display import display_game_state
+from copy import deepcopy
+from functools import cmp_to_key
+import colorama
+colorama.init()  # Initialize colorama for Windows compatibility
+from colorama import Fore, Style
 
 class Player:
     def __init__(self, name, deck=None, is_human=True, game_log=None):
         self.name = name
         self.life = 20
-        self.energy = 1
+        self.energy = 2
+        self.energy_regen = 1  # Base energy regeneration rate
         self.deck = deck if deck is not None else create_deck("card_data.json")
         self.hand = []
         self.board = []
         self.environment = []
-        self.draw_initial_hand()
         self.attacked_this_turn = []
         self.is_human = is_human
         self.game_log = game_log if game_log is not None else []  # Ensure game_log is initialized
+        self.draw_initial_hand()
+        self.sort_hand()  # Sort the initial hand
 
+    def upkeep(self):
+        self.untap_all()
+        
+        # Apply triggered effects
+        for card in self.board + self.environment:
+            apply_card_effects(self, card, None, phase="upkeep")
+        
+        old_energy = self.energy
+        self.energy += self.energy_regen
+        energy_gained = self.energy - old_energy
+        print(f"Debug: {self.name} - Old energy: {old_energy}, Regen rate: {self.energy_regen}, New energy: {self.energy}")
+        self.game_log.append(f"{self.name} untapped all cards and gained {Fore.GREEN}{energy_gained} energy{Style.RESET_ALL} (now at {self.energy}).")
 
     def draw_initial_hand(self):
         for _ in range(5):
@@ -27,26 +46,32 @@ class Player:
         if self.deck:
             card = self.deck.pop(0)
             self.hand.append(card)
+            self.sort_hand()  # Sort the hand after drawing
+            if self.is_human:
+                self.game_log.append(f"{Fore.GREEN}{self.name} drew {card.name}.{Style.RESET_ALL}")
             return card
         return None
-    
+
     def untap_all(self):
         for card in self.board:
             card.untap()
 
     def play_card(self, card_index, opponent):
+        print(f"play_card called with card_index: {card_index}")
         if 0 <= card_index < len(self.hand):
             card = self.hand[card_index]
+            print(f"Playing card: {card.name}")
             if card.cost <= self.energy:
                 self.energy -= card.cost
+                self.game_log.append(f"{self.name} played {card.name}.")
                 if card.card_type == 'creature':
                     new_card = deepcopy(card)
                     new_card.reset_stats()
+                    new_card.tap()  # Tap the creature immediately
                     self.board.append(new_card)
                     self.hand.pop(card_index)
                     return new_card
                 elif card.card_type == 'spell':
-                    self.cast_spell(card, opponent)
                     self.hand.pop(card_index)
                     return card
                 elif card.card_type == 'equipment':
@@ -59,54 +84,17 @@ class Player:
                         print("No creatures to equip the card to.")
                         self.energy += card.cost  # Refund energy if no valid target
                 elif card.card_type == 'enchantment':
-                    self.environment.append(card)
+                    new_card = deepcopy(card)
+                    self.environment.append(new_card)
                     self.hand.pop(card_index)
-                    return card
+                    return new_card
             else:
                 print("Not enough energy to play this card.")
         return None
-    
+
     def cast_spell(self, card, opponent, target=None):
-        if card.name == "Spore Burst":
-            opponent.life -= 3
-            self.game_log.append(f"{self.name} cast {card.name}, dealing 3 damage to the opponent.")
-        elif card.name == "Gun Blast":
-            if target:
-                target.defense -= 3
-                self.game_log.append(f"{self.name} cast {card.name}, dealing 3 damage to {target.name}.")
-                if target.defense <= 0:
-                    opponent.board.remove(target)
-                    self.game_log.append(f"{target.name} was destroyed.")
-        elif card.name == "Energy Boost":
-            self.energy += 2
-            self.game_log.append(f"{self.name} cast {card.name}, gaining 2 energy.")
-        # Add more spells as needed
-
-    def equip_card(self, card, card_index):
-        while True:
-            try:
-                target_index = int(input(f"Choose a creature to equip {card.name} to (index): ")) - 1
-                if 0 <= target_index < len(self.board):
-                    target = self.board[target_index]
-                    if card.name == "Fungal Shield":
-                        target.defense += 1
-                    elif card.name == "Cyber Blade":
-                        target.attack += 2
-                    self.hand.pop(card_index)
-                    break
-                else:
-                    print("Invalid index. Try again.")
-            except ValueError:
-                print("Invalid input. Please enter a valid index.")
-
-    def ai_equip_card(self, card, card_index):
-        if self.board:
-            target = random.choice(self.board)
-            if card.name == "Fungal Shield":
-                target.defense += 1
-            elif card.name == "Cyber Blade":
-                target.attack += 2
-            self.hand.pop(card_index)
+        print(f"cast_spell called with card: {card.name}")
+        apply_card_effects(self, card, opponent)
 
     def attack(self, opponent, game, attackers=None, blockers=None):
         if attackers is None:
@@ -121,15 +109,21 @@ class Player:
 
         game.game_log.append(f"\033[1;31m{self.name} is attacking with {[str(a) for a in attackers]}.\033[0m")
 
-        # Tap all attacking creatures
+        # Tap all attacking creatures and apply attack effects
         for attacker in attackers:
             attacker.tap()
+            for effect in attacker.effects:
+                if effect["trigger"] == "on_attack":
+                    effect_type = effect["type"]
+                    value = effect.get("value", 0)
+                    if effect_type in effect_handlers:
+                        effect_handlers[effect_type](self, value)
 
         if not opponent.board:
             for attacker in attackers:
                 opponent.life -= attacker.attack
                 self.attacked_this_turn.append(attacker)
-            game.game_log.append(f"\033[1;31m{self.name} attacked {opponent.name} directly with {len(attackers)} creatures.\033[0m")
+                game.game_log.append(f"{attacker.name} dealt {attacker.attack} damage to {opponent.name}. Remaining life: {opponent.life}")
         else:
             if blockers is None:
                 if opponent.is_human:
@@ -154,9 +148,11 @@ class Player:
                     self.attacked_this_turn.append(attacker)
                     if blocker:
                         game.game_log.append(f"\033[1;31m{blocker.name} was unable to block {attacker.name}.\033[0m")
+                    game.game_log.append(f"{attacker.name} dealt {attacker.attack} damage to {opponent.name}. Remaining life: {opponent.life}")
 
             game.game_log.append(f"\033[1;31m{self.name} attacked {opponent.name} with {len(attackers)} creatures, {len([b for b in blockers if b and not b.tapped])} were blocked.\033[0m")
-    
+  
+  
     def choose_attackers(self, game):
         attackers = []
         while True:
@@ -234,13 +230,44 @@ class Player:
     def reset_attacks(self):
         self.attacked_this_turn = []
 
+
+    def equip_card(self, card, card_index):
+        while True:
+            try:
+                target_index = int(input(f"Choose a creature to equip {card.name} to (index): ")) - 1
+                if 0 <= target_index < len(self.board):
+                    target = self.board[target_index]
+                    if card.name == "Fungal Shield":
+                        target.defense += 1
+                    elif card.name == "Cyber Blade":
+                        target.attack += 2
+                    self.hand.pop(card_index)
+                    break
+                else:
+                    print("Invalid index. Try again.")
+            except ValueError:
+                print("Invalid input. Please enter a valid index.")
+
+    def ai_equip_card(self, card, card_index):
+        if self.board:
+            target = random.choice(self.board)
+            if card.name == "Fungal Shield":
+                target.defense += 1
+            elif card.name == "Cyber Blade":
+                target.attack += 2
+            self.hand.pop(card_index)
+
+
     def end_phase(self):
-        # Perform any end-of-turn actions here
-        self.attacked_this_turn = []  # Reset the list of creatures that attacked this turn
-        # Apply environment effects
-        for card in self.environment:
-            if card.name == "Land Enchantment":
-                self.energy += 0.5
+        # Remove any end of turn effects here, but don't add energy
+        pass
 
     def __str__(self):
         return f"{self.name} - Life: {self.life}, Energy: {self.energy}, Deck: {len(self.deck)} cards"
+
+    def sort_hand(self):
+        def card_sort_key(card):
+            type_order = {'creature': 0, 'spell': 1, 'equipment': 2, 'enchantment': 3}
+            return (type_order.get(card.card_type, 4), card.cost, card.name)
+        
+        self.hand.sort(key=card_sort_key)

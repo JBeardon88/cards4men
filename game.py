@@ -4,6 +4,20 @@ import random
 from player import Player
 from display import display_game_state  # Import the display_game_state function
 from card_data import create_deck
+from colorama import Fore, Style
+
+
+UPKEEP_PHASE = "upkeep"
+DRAW_PHASE = "draw"
+MAIN1_PHASE = "main1"
+COMBAT_PHASE = "combat"
+MAIN2_PHASE = "main2"
+END_PHASE = "end"
+
+
+def pause_for_input():
+    input("Press Enter to continue...")
+
 
 class Game:
     def __init__(self, card_data_file):
@@ -13,27 +27,28 @@ class Game:
         self.current_player = self.player1
         self.opponent = self.player2
         self.turn = 1
-        self.phase = "upkeep"
+        self.phase = UPKEEP_PHASE
         self.showing_game_log = False
 
     def play(self):
         while self.player1.life > 0 and self.player2.life > 0:
             if not self.showing_game_log:
-                display_game_state(self)  # Use the imported function
-                # Comment out the debug print lines
-                # print(f"Debug: Current player: {self.current_player.name}")
-                # print(f"Debug: Current player hand: {[card.name for card in self.current_player.hand]}")
+                display_game_state(self)
             
-            if self.current_player.is_human:
-                self.human_turn()
-            else:
-                self.ai_turn()
-            
+            if not self.current_player.is_human:
+                print(f"{Fore.CYAN}AI's turn:{Style.RESET_ALL}")
+                pause_for_input()
+
+            self.handle_phase()
+
             if self.player1.life <= 0 or self.player2.life <= 0:
                 break
             
-            self.switch_turn()
-            time.sleep(0.5)  # Add a small delay between turns
+            if not self.current_player.is_human and self.phase == END_PHASE:
+                print(f"{Fore.CYAN}AI's turn ended.{Style.RESET_ALL}")
+                pause_for_input()
+
+            time.sleep(0.5)  # Add a small delay between phases
         
         display_game_state(self)  # Use the imported function
         print("Game Over")
@@ -42,41 +57,83 @@ class Game:
         else:
             print("AI wins!")
 
+    def handle_phase(self):
+        if self.phase == UPKEEP_PHASE:
+            self.upkeep_phase()
+        elif self.phase == DRAW_PHASE:
+            self.draw_phase()
+        elif self.phase == MAIN1_PHASE:
+            self.main_phase1()
+        elif self.phase == COMBAT_PHASE:
+            self.combat_phase()
+        elif self.phase == MAIN2_PHASE:
+            self.main_phase2()
+        elif self.phase == END_PHASE:
+            self.end_phase()
+
+    def upkeep_phase(self):
+        old_energy = self.current_player.energy
+        self.current_player.upkeep()
+        energy_gained = self.current_player.energy - old_energy
+        if self.current_player.is_human:
+            self.game_log.append(f"{self.current_player.name} untapped all cards and gained {Fore.GREEN}{energy_gained} energy{Style.RESET_ALL} (now at {self.current_player.energy}).")
+        self.game_log.append(f"{Fore.CYAN}{self.current_player.name} is in Upkeep Phase.{Style.RESET_ALL}")
+        self.phase = DRAW_PHASE
+
+    def draw_phase(self):
+        drawn_card = self.current_player.draw_card()
+        if drawn_card and self.current_player.is_human:
+            self.game_log.append(f"{self.current_player.name} drew a card.")
+        elif not drawn_card:
+            self.game_log.append(f"{Fore.YELLOW}{self.current_player.name} couldn't draw a card (deck empty).{Style.RESET_ALL}")
+        self.game_log.append(f"{Fore.CYAN}{self.current_player.name} is in Draw Phase.{Style.RESET_ALL}")
+        self.phase = MAIN1_PHASE
+
+    def main_phase1(self):
+        self.game_log.append(f"\033[1;36m{self.current_player.name} is in Main Phase 1.\033[0m")
+        if self.current_player.is_human:
+            self.summon_phase(MAIN1_PHASE)
+        else:
+            self.ai_summon_phase(MAIN1_PHASE)
+        self.phase = COMBAT_PHASE
+
+    def combat_phase(self):
+        self.game_log.append(f"\033[1;36m{self.current_player.name} is in Combat Phase.\033[0m")
+        if self.current_player.is_human:
+            self.attack_phase()
+        else:
+            self.ai_attack_phase()
+        self.phase = MAIN2_PHASE
+
+    def main_phase2(self):
+        self.game_log.append(f"\033[1;36m{self.current_player.name} is in Main Phase 2.\033[0m")
+        if self.current_player.is_human:
+            self.summon_phase(MAIN2_PHASE)
+        else:
+            self.ai_summon_phase(MAIN2_PHASE)
+        self.phase = END_PHASE
+
+    def end_phase(self):
+        self.game_log.append(f"\033[1;36m{self.current_player.name} is in End Phase.\033[0m")
+        self.current_player.end_phase()
+        self.switch_turn()
+        self.phase = UPKEEP_PHASE
+
     def human_turn(self):
-        self.upkeep_phase()
-        self.summon_phase("summon1")
-        self.attack_phase()
-        self.summon_phase("summon2")
-        self.current_player.end_phase()  # Call the player's end_phase method
+        self.summon_phase(MAIN1_PHASE)
 
     def ai_turn(self):
-        self.upkeep_phase()
-        input("Press Enter to continue to AI's summon phase...")
-        self.ai_summon_phase("summon1")
-        input("Press Enter to continue to AI's attack phase...")
-        self.ai_attack_phase()
-        input("Press Enter to continue to AI's second summon phase...")
-        self.ai_summon_phase("summon2")
-        self.current_player.end_phase()  # Call the player's end_phase method
+        self.ai_summon_phase(MAIN1_PHASE)
 
     def switch_turn(self):
         self.current_player, self.opponent = self.opponent, self.current_player
         self.turn += 1
-        for card in self.current_player.board:
-            card.summoning_sickness = False
-
-    def upkeep_phase(self):
-        self.current_player.untap_all()
-        self.current_player.energy += 1  # Gain 1 energy at the start of the turn
-        self.game_log.append(f"{self.current_player.name} untapped all cards and gained 1 energy.")
-        self.current_player.draw_card()
-        self.game_log.append(f"{self.current_player.name} drew a card.")
-        self.phase = "summon1"
+        self.phase = UPKEEP_PHASE
 
     def summon_phase(self, phase_name):
         while True:
             display_game_state(self)  # Use the imported function
-            action = input(f"{phase_name.capitalize()} Phase - Choose action: play, pass, help, info, spell, gamelog: ").strip().lower()
+            action = input(f"\033[1;36m{phase_name.capitalize()} Phase - Choose action: play, pass, help, info, spell, gamelog: \033[0m").strip().lower()
             if action == "play":
                 try:
                     card_index = int(input("Choose card index to play: ")) - 1
@@ -155,46 +212,42 @@ class Game:
             self.game_log.append(f"\033[3;33mAI passed the {phase_name} phase.\033[0m")
 
     def attack_phase(self):
-        while True:
-            display_game_state(self)  # Use the imported function
-            action = input("Attack Phase - Choose action: attack, pass, help, spell, gamelog: ").strip().lower()
-            if action == "attack":
-                attackers = self.current_player.choose_attackers(self)
-                if attackers:
-                    attacker_descriptions = [f"{self.current_player.board.index(a) + 1}: {str(a)}" for a in attackers]
-                    self.game_log.append(f"\033[1;31m{self.current_player.name} declared attackers: {', '.join(attacker_descriptions)}.\033[0m")
-                    display_game_state(self)  # Use the imported function
-                    self.check_for_spell_casting()  # Check for spell casting opportunity
+        display_game_state(self)  # Use the imported function
+        action = input("\033[1;36mCombat Phase - Choose action: attack, pass, help, spell, gamelog: \033[0m").strip().lower()
+        if action == "attack":
+            attackers = self.current_player.choose_attackers(self)
+            if attackers:
+                attacker_descriptions = [f"{self.current_player.board.index(a) + 1}: {str(a)}" for a in attackers]
+                self.game_log.append(f"\033[1;31m{self.current_player.name} declared attackers: {', '.join(attacker_descriptions)}.\033[0m")
+                display_game_state(self)  # Use the imported function
+                self.check_for_spell_casting()  # Check for spell casting opportunity
 
-                    if self.opponent.board:
-                        blockers = self.opponent.choose_blockers(self, attackers)
-                        if blockers:
-                            blocker_descriptions = [f"{self.opponent.board.index(b) + 1}: {str(b)}" if b else "X" for b in blockers]
-                            self.game_log.append(f"\033[1;31m{self.opponent.name} declared blockers: {', '.join(blocker_descriptions)}.\033[0m")
-                            display_game_state(self)  # Use the imported function
-                            self.check_for_spell_casting()  # Check for spell casting opportunity
-                    else:
-                        blockers = [None] * len(attackers)
-
-                    self.current_player.attack(self.opponent, self, attackers, blockers)
-                    display_game_state(self)  # Update the display immediately
-                    self.check_for_spell_casting()  # Check for spell casting opportunity
+                if self.opponent.board:
+                    blockers = self.opponent.choose_blockers(self, attackers)
+                    if blockers:
+                        blocker_descriptions = [f"{self.opponent.board.index(b) + 1}: {str(b)}" if b else "X" for b in blockers]
+                        self.game_log.append(f"\033[1;31m{self.opponent.name} declared blockers: {', '.join(blocker_descriptions)}.\033[0m")
+                        display_game_state(self)  # Use the imported function
+                        self.check_for_spell_casting()  # Check for spell casting opportunity
                 else:
-                    print("No valid attackers.")
-            elif action == "pass":
-                self.game_log.append(f"\033[1;33m{self.current_player.name} passed the attack phase.\033[0m")
-                break
-            elif action == "help":
-                print("Available actions: attack, pass, help, spell, gamelog")
-                input("Press Enter to continue...")
-            elif action == "spell":
-                self.cast_spell_during_opponent_turn()
-            elif action == "gamelog":
-                self.showing_game_log = True
-                self.show_game_log()
+                    blockers = [None] * len(attackers)
+
+                self.current_player.attack(self.opponent, self, attackers, blockers)
+                display_game_state(self)  # Update the display immediately
+                self.check_for_spell_casting()  # Check for spell casting opportunity
             else:
-                print("Invalid action.")
-                self.game_log.append(f"\033[1;33m{self.current_player.name} chose an invalid action.\033[0m")
+                print("No valid attackers.")
+        elif action == "help":
+            print("Available actions: attack, pass, help, spell, gamelog")
+            input("Press Enter to continue...")
+        elif action == "spell":
+            self.cast_spell_during_opponent_turn()
+        elif action == "gamelog":
+            self.showing_game_log = True
+            self.show_game_log()
+        else:
+            print("Invalid action.")
+            self.game_log.append(f"\033[1;33m{self.current_player.name} chose an invalid action.\033[0m")
 
     def ai_attack_phase(self):
         attackers = self.current_player.ai_choose_attackers()
@@ -241,7 +294,9 @@ class Game:
     def clear_screen(self):
         os.system('cls' if os.name == 'nt' else 'clear')
 
+
+
 if __name__ == "__main__":
-    card_set_file = 'set1.json'  # Change this to switch card sets
+    card_set_file = 'shroomdeck.json'  # Change this to switch card sets
     game = Game(card_set_file)
     game.play()
