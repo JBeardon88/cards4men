@@ -7,7 +7,7 @@
         "description": "At the start of your turn, draw 1 card if you control more than 3 creatures.",
         "card_type": "creature",
         "effects": [
-            {"type": "conditional_draw_cards", "value": 1, "trigger": "start_of_turn", "condition": "control_more_than_3_creatures"}
+            {"type": "conditional_draw_cards", "value": 1, "trigger": "upkeep", "condition": "control_more_than_3_creatures"}
         ]
     },
     {
@@ -37,7 +37,7 @@
         "attack": 3,
         "defense": 2,
         "cost": 2,
-        "description": "",
+        "description": "Slippery when wet",
         "card_type": "creature"
     },
     {
@@ -56,7 +56,7 @@
         "attack": 2,
         "defense": 1,
         "cost": 1,
-        "description": "",
+        "description": "pew pew bitches!",
         "card_type": "creature"
     },
     {
@@ -64,7 +64,7 @@
         "attack": 3,
         "defense": 1,
         "cost": 2,
-        "description": "",
+        "description": "Huff gas and eat ass choomba",
         "card_type": "creature"
     },
     {
@@ -72,7 +72,7 @@
         "attack": 3,
         "defense": 3,
         "cost": 3,
-        "description": "",
+        "description": "I'ma dingle ur berries son",
         "card_type": "creature"
     },
     {
@@ -125,11 +125,10 @@
         "attack": 0,
         "defense": 0,
         "cost": 2,
-        "description": "Equip to a creature. That creature gains +3 defense but cannot attack.",
+        "description": "Equip to a creature. That creature gains +3 defense.",
         "card_type": "equipment",
         "effects": [
-            {"type": "gain_defense", "value": 3, "target": "creature"},
-            {"type": "prevent_attack", "target": "creature"}
+            {"type": "gain_defense", "value": 3, "target": "creature"}
         ]
     },
     {
@@ -196,10 +195,10 @@
         "attack": 0,
         "defense": 0,
         "cost": 3,
-        "description": "Gain 1 additional energy at the start of each turn. When you play a creature, draw 1 card.",
+        "description": "Gain 1 additional energy at upkeep. When you play a creature, draw a card.",
         "card_type": "enchantment",
         "effects": [
-            {"type": "gain_energy", "value": 1, "trigger": "start_of_turn"},
+            {"type": "increase_energy_regen", "value": 1, "trigger": "upkeep"},
             {"type": "draw_cards", "value": 1, "trigger": "on_play_creature"}
         ]
     },
@@ -211,7 +210,7 @@
         "description": "At the start of each turn, gain 1 additional energy.",
         "card_type": "enchantment",
         "effects": [
-            {"type": "gain_energy", "value": 1, "trigger": "start_of_turn"}
+            {"type": "increase_energy_regen", "value": 1, "trigger": "upkeep"}
         ]
     }
 ]

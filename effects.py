@@ -34,7 +34,6 @@ def prevent_untap(card):
 
 def conditional_gain_energy(player, opponent, value, condition):
     if condition == "damaged_opponent":
-        # You'll need to implement a way to track if the opponent was damaged this turn
         if player.damaged_opponent_this_turn:
             player.energy += value
             player.game_log.append(f"{player.name} gained {value} energy from Energy Bloom.")
@@ -51,17 +50,36 @@ def conditional_gain_attack(card, value, condition):
 
 def reduce_equipment_cost(player, value):
     player.equipment_cost_reduction = value
+    print(f"{player.name}'s equipment costs are reduced by {value} while Tactical Drone is on the field.")
 
 def regenerate_health(card, value):
     card.defense = min(card.defense + value, card.max_defense)
 
-def grant_double_attack(card):
-    card.double_attack = True
+def grant_double_attack(target_card):
+    target_card.double_attack = True
+    print(f"{target_card.name} can now attack twice this turn.")
 
 def destroy_enemy_enchantment(player, opponent):
-    if opponent.enchantments:
-        destroyed_enchantment = opponent.enchantments.pop()
-        player.game_log.append(f"{player.name} destroyed {opponent.name}'s enchantment: {destroyed_enchantment.name}")
+    if opponent.environment:
+        print("Opponent's environment cards:")
+        for idx, card in enumerate(opponent.environment, 1):
+            print(f"{idx}: {card.name} (ATK: {card.attack}, DEF: {card.defense}, Cost: {card.cost}) - {card.description}")
+        
+        while True:
+            try:
+                target_index = int(input("Choose an enemy enchantment to destroy (index): ")) - 1
+                if 0 <= target_index < len(opponent.environment):
+                    destroyed_card = opponent.environment.pop(target_index)
+                    print(f"Destroyed {destroyed_card.name}")
+                    player.game_log.append(f"{player.name} destroyed {opponent.name}'s {destroyed_card.name}.")
+                    break
+                else:
+                    print("Invalid index. Try again.")
+            except ValueError:
+                print("Invalid input. Please enter a valid index.")
+    else:
+        print("No enemy enchantments to destroy.")
+        player.game_log.append(f"{player.name} tried to destroy an enemy enchantment, but there were none.")
 
 def destroy_enemy_equipment_or_enchantment(player, opponent):
     if opponent.equipment:
@@ -89,5 +107,17 @@ def increase_energy_regen(player, value):
         player.game_log.append(f"{player.name}'s energy regeneration {Fore.GREEN}increased by {value}{Style.RESET_ALL}.")
     else:
         print(f"Debug: {player.name}'s energy regen already increased. Current rate: {player.energy_regen}")
+
+
+def destroy_enemy_equipment_or_enchantment(player, opponent):
+    if opponent.environment:
+        target_index = int(input("Choose an enemy enchantment to destroy (index): ")) - 1
+        if 0 <= target_index < len(opponent.environment):
+            destroyed_card = opponent.environment.pop(target_index)
+            print(f"Destroyed {destroyed_card.name}")
+            player.game_log.append(f"{player.name} destroyed {opponent.name}'s {destroyed_card.name}.")
+    else:
+        print("No enemy enchantments to destroy.")
+        player.game_log.append(f"{player.name} tried to destroy an enemy enchantment, but there were none.")
 
 # Add more generic effects as needed

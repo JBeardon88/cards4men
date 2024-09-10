@@ -18,7 +18,12 @@
         "description": "At the start of your turn, gain +1 defense.",
         "card_type": "creature",
         "effects": [
-            {"type": "gain_defense", "value": 1, "trigger": "start_of_turn"}
+            {
+                "type": "gain_defense",
+                "value": 1,
+                "trigger": "upkeep",
+                "target": "self"
+            }
         ]
     },
     {
@@ -29,7 +34,12 @@
         "description": "Gains +1 attack at the start of each turn.",
         "card_type": "creature",
         "effects": [
-            {"type": "gain_attack", "value": 1, "trigger": "start_of_turn"}
+            {
+                "type": "gain_attack",
+                "value": 1,
+                "trigger": "upkeep",
+                "target": "self"
+            }
         ]
     },
     {
@@ -37,7 +47,7 @@
         "attack": 3,
         "defense": 3,
         "cost": 2,
-        "description": "",
+        "description": "A real big boi",
         "card_type": "creature"
     },
     {
@@ -45,7 +55,7 @@
         "attack": 4,
         "defense": 4,
         "cost": 3,
-        "description": "",
+        "description": "BIG BOI DIAMONDS",
         "card_type": "creature"
     },
     {
@@ -56,7 +66,7 @@
         "description": "At the start of your turn, gains +1 attack if enemy has a creature.",
         "card_type": "creature",
         "effects": [
-            {"type": "conditional_gain_attack", "value": 1, "trigger": "start_of_turn", "condition": "enemy_has_creature"}
+            {"type": "conditional_gain_attack", "value": 1, "trigger": "upkeep", "condition": "enemy_has_creature"}
         ]
     },
     {
@@ -67,7 +77,12 @@
         "description": "At the start of each turn, gains +1 defense.",
         "card_type": "creature",
         "effects": [
-            {"type": "gain_defense", "value": 1, "trigger": "start_of_turn"}
+            {
+                "type": "gain_defense",
+                "value": 1,
+                "trigger": "upkeep",
+                "target": "self"
+            }
         ]
     },
     {
@@ -129,11 +144,15 @@
         "name": "Spore Burst",
         "attack": 0,
         "defense": 0,
-        "cost": 1,
-        "description": "Deal 2 damage to the opponent's life.",
+        "cost": 3,
+        "description": "Deal 2 damage to the opponent.",
         "card_type": "spell",
         "effects": [
-            {"type": "deal_damage", "value": 2, "target": "opponent"}
+            {
+                "type": "deal_damage",
+                "value": 2,
+                "target": "opponent"
+            }
         ]
     },
     {

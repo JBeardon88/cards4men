@@ -30,6 +30,27 @@ class Game:
         self.phase = UPKEEP_PHASE
         self.showing_game_log = False
 
+        self.choose_faction()
+
+
+    def choose_faction(self):
+        factions = ["technobros", "funguys"]
+        print("Choose your faction:")
+        for i, faction in enumerate(factions, 1):
+            print(f"{i}. {faction.capitalize()}")
+
+        choice = int(input("Enter the number of your choice: ")) - 1
+        player_faction = factions[choice]
+        ai_faction = factions[1 - choice]
+
+        player_deck = create_deck(f"{player_faction}.json")
+        ai_deck = create_deck(f"{ai_faction}.json")
+
+        self.player1 = Player("Human", deck=player_deck, game_log=self.game_log)
+        self.player2 = Player("AI", is_human=False, deck=ai_deck, game_log=self.game_log)
+        self.current_player = self.player1
+        self.opponent = self.player2
+
     def play(self):
         while self.player1.life > 0 and self.player2.life > 0:
             if not self.showing_game_log:
@@ -116,6 +137,7 @@ class Game:
     def end_phase(self):
         self.game_log.append(f"\033[1;36m{self.current_player.name} is in End Phase.\033[0m")
         self.current_player.end_phase()
+        self.current_player.damaged_opponent_this_turn = False  # Reset the attribute
         self.switch_turn()
         self.phase = UPKEEP_PHASE
 
@@ -297,6 +319,6 @@ class Game:
 
 
 if __name__ == "__main__":
-    card_set_file = 'shroomdeck.json'  # Change this to switch card sets
+    card_set_file = 'technobros.json'  # Change this to switch card sets
     game = Game(card_set_file)
     game.play()

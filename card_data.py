@@ -1,5 +1,6 @@
 import json
 import random
+import os
 from copy import deepcopy
 from card import Card
 from effects import draw_cards, deal_damage, gain_energy, lose_life, gain_attack, gain_defense, lose_attack, tap_creature, prevent_untap
@@ -13,12 +14,18 @@ def load_card_data(file_path):
         card_data = json.load(file)
     return [Card(**card) for card in card_data]
 
+
+
 def create_deck(file_path):
-    card_data = load_card_data(file_path)
-    selected_cards = random.sample(card_data, 15)  # Select 15 random cards
-    deck = [deepcopy(card) for card in selected_cards * 2]  # Create unique instances of each card
-    random.shuffle(deck)
+    base_path = os.path.dirname(__file__)
+    full_path = os.path.join(base_path, 'card_sets', file_path)
+    
+    with open(full_path, 'r') as file:
+        card_data = json.load(file)
+    
+    deck = [Card(**random.choice(card_data)) for _ in range(30)]
     return deck
+
 
 # Dictionary mapping effect types to their handler functions
 effect_handlers = {
@@ -43,6 +50,9 @@ effect_handlers = {
     "deal_damage_all_enemy_creatures": deal_damage_all_enemy_creatures,
     "increase_energy_regen": increase_energy_regen,
     "conditional_gain_energy": conditional_gain_energy,
+    "destroy_enemy_equipment_or_enchantment": destroy_enemy_equipment_or_enchantment,
+    "reduce_equipment_cost": reduce_equipment_cost,
+    "conditional_gain_energy": conditional_gain_energy,
     # Other new handlers...
 }
 
@@ -65,22 +75,25 @@ def apply_card_effects(player, card, opponent, phase=None):
                 effect_function = effect_handlers[effect_type]
                 
                 # Determine the correct arguments based on the effect's signature
-                if "player" in effect_function.__code__.co_varnames:
-                    if "opponent" in effect_function.__code__.co_varnames:
-                        if "condition" in effect_function.__code__.co_varnames:
-                            effect_function(player, opponent, value, condition)
-                        else:
-                            effect_function(player, opponent, value)
-                    else:
-                        effect_function(player, value)
+                if effect_type == "conditional_gain_energy":
+                    effect_function(player, opponent, value, condition)
+                elif effect_type == "destroy_enemy_enchantment":
+                    effect_function(player, opponent)
+                elif effect_type == "deal_damage":
+                    effect_function(player, opponent, value)
+                elif target == "self":
+                    effect_function(card, value)
                 elif target == "creature" and player.board:
-                    target_card = player.board[0]  # Simplified; you may want to select a specific card
-                    effect_function(target_card, value)
+                    target_card = player.choose_target_card()
+                    if effect_type == "grant_double_attack":
+                        effect_function(target_card)
+                    else:
+                        effect_function(target_card, value)
                 elif target == "enemy_creature" and opponent.board:
-                    target_card = opponent.board[0]  # Simplified; you may want to select a specific card
+                    target_card = opponent.choose_target_card()
                     effect_function(target_card, value)
                 else:
-                    effect_function(card, value)
+                    effect_function(player, value)
                 
                 print(f"Applied {effect_type}")
             else:

@@ -22,6 +22,8 @@ class Player:
         self.attacked_this_turn = []
         self.is_human = is_human
         self.game_log = game_log if game_log is not None else []  # Ensure game_log is initialized
+        self.damaged_opponent_this_turn = False  # Initialize the attribute
+        self.equipment_cost_reduction = 0
         self.draw_initial_hand()
         self.sort_hand()  # Sort the initial hand
 
@@ -61,6 +63,8 @@ class Player:
         if 0 <= card_index < len(self.hand):
             card = self.hand[card_index]
             print(f"Playing card: {card.name}")
+            if card.card_type == "equipment":
+                card.cost = max(0, card.cost - self.equipment_cost_reduction)
             if card.cost <= self.energy:
                 self.energy -= card.cost
                 self.game_log.append(f"{self.name} played {card.name}.")
@@ -117,42 +121,35 @@ class Player:
                     effect_type = effect["type"]
                     value = effect.get("value", 0)
                     if effect_type in effect_handlers:
-                        effect_handlers[effect_type](self, value)
+                        effect_handlers[effect_type](self, opponent, value)
 
         if not opponent.board:
             for attacker in attackers:
                 opponent.life -= attacker.attack
-                self.attacked_this_turn.append(attacker)
-                game.game_log.append(f"{attacker.name} dealt {attacker.attack} damage to {opponent.name}. Remaining life: {opponent.life}")
+                self.damaged_opponent_this_turn = True  # Set the attribute to True if the opponent is damaged
+                game.game_log.append(f"\033[1;31m{self.name} dealt {attacker.attack} damage to {opponent.name}.\033[0m")
+                if hasattr(attacker, 'double_attack') and attacker.double_attack:
+                    opponent.life -= attacker.attack
+                    game.game_log.append(f"\033[1;31m{self.name} dealt an additional {attacker.attack} damage to {opponent.name} due to double attack.\033[0m")
         else:
-            if blockers is None:
-                if opponent.is_human:
-                    blockers = opponent.choose_blockers(game, attackers)
-                else:
-                    blockers = opponent.ai_choose_blockers(attackers)
-
+            # Handle combat with blockers
             for attacker, blocker in zip(attackers, blockers):
-                if blocker and not blocker.tapped:  # Check if blocker is still untapped
-                    game.game_log.append(f"\033[1;34m{blocker.name} blocks {attacker.name}.\033[0m")
-                    attacker.defense -= blocker.attack
-                    blocker.defense -= attacker.attack
-                    if attacker.defense <= 0:
-                        game.game_log.append(f"\033[1;31m{attacker.name} is destroyed.\033[0m")
-                        self.board.remove(attacker)
+                if blocker:
+                    attacker.attack_creature(blocker)
                     if blocker.defense <= 0:
-                        game.game_log.append(f"\033[1;31m{blocker.name} is destroyed.\033[0m")
                         opponent.board.remove(blocker)
-                    self.attacked_this_turn.append(attacker)
+                    if attacker.defense <= 0:
+                        self.board.remove(attacker)
                 else:
                     opponent.life -= attacker.attack
-                    self.attacked_this_turn.append(attacker)
-                    if blocker:
-                        game.game_log.append(f"\033[1;31m{blocker.name} was unable to block {attacker.name}.\033[0m")
-                    game.game_log.append(f"{attacker.name} dealt {attacker.attack} damage to {opponent.name}. Remaining life: {opponent.life}")
+                    self.damaged_opponent_this_turn = True  # Set the attribute to True if the opponent is damaged
+                    game.game_log.append(f"\033[1;31m{self.name} dealt {attacker.attack} damage to {opponent.name}.\033[0m")
+                    if hasattr(attacker, 'double_attack') and attacker.double_attack:
+                        opponent.life -= attacker.attack
+                        game.game_log.append(f"\033[1;31m{self.name} dealt an additional {attacker.attack} damage to {opponent.name} due to double attack.\033[0m")
 
-            game.game_log.append(f"\033[1;31m{self.name} attacked {opponent.name} with {len(attackers)} creatures, {len([b for b in blockers if b and not b.tapped])} were blocked.\033[0m")
-  
-  
+
+
     def choose_attackers(self, game):
         attackers = []
         while True:
@@ -257,6 +254,17 @@ class Player:
                 target.attack += 2
             self.hand.pop(card_index)
 
+
+    def choose_target_card(self):
+        while True:
+            try:
+                target_index = int(input("Choose target creature index: ")) - 1
+                if 0 <= target_index < len(self.board):
+                    return self.board[target_index]
+                else:
+                    print("Invalid index. Try again.")
+            except ValueError:
+                print("Invalid input. Please enter a valid index.")
 
     def end_phase(self):
         # Remove any end of turn effects here, but don't add energy
